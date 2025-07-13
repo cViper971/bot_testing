@@ -9,10 +9,21 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 BRAWL_API_TOKEN = os.getenv("BRAWL_API_TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")
+PLAYER_FILE = "players.json"
 
 HEADERS = {
     "Authorization": f"Bearer {BRAWL_API_TOKEN}"
 }
+
+if os.path.exists(PLAYER_FILE):
+    with open(PLAYER_FILE, "r") as f:
+        player_tags = json.load(f)
+else:
+    player_tags = {}
+
+def save_tags():
+    with open(PLAYER_FILE, "w") as f:
+        json.dump(player_tags, f)
 
 def get_player(tag):
     tag = tag.strip("#").upper()
@@ -53,13 +64,28 @@ async def hello(interaction: discord.Interaction):
     player_id='The first value you want to add something to',
 )
 async def get_stats(interaction: discord.Interaction, player_id: str):
-    data = get_player("#"+player_id)
+    new_id = player_tags.get(str(interaction.user.id))
+    data = get_player("#"+new_id)
     if data:
         name = data["name"]
         trophies = data["trophies"]
         await interaction.response.send_message(f"{name} has {trophies} trophies.")
     else:
         await interaction.response.send_message("Player not found.")
+
+@tree.command(
+    name="set_id",
+    description="Save your Brawl Stars player tag",
+    guild=discord.Object(id=GUILD_ID)
+)
+@app_commands.describe(
+    tag='The first value you want to add something to',
+)
+async def set_id(interaction: discord.Interaction, tag: str):
+    user_id = str(interaction.user.id)
+    player_tags[user_id] = tag.strip().upper()
+    save_tags()
+    await interaction.response.send_message(f"Your tag `{tag}` has been saved!")
 
 # Run the bot
 client.run(DISCORD_TOKEN)
