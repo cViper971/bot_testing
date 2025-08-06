@@ -33,7 +33,7 @@ async def on_ready():
             client=client,
             channel_id=1370506707494764671,
             user_id=692912115823935570,
-            repo_url="cViper971/bot_testing",  # e.g. 'vercel/next.js'
+            repo_url="vanshb03/Summer2026-Internships",  # e.g. 'vercel/next.js'
             interval=10  # 5 minutes
         )
     )

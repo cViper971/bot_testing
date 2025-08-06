@@ -1,37 +1,44 @@
-import feedparser
+import aiohttp
 import asyncio
 import discord
+import json
 
-last_commit_id = None  # Global variable to cache last seen commit
+last_seen_key = None
+
+async def fetch_listings_json(repo_url: str):
+    raw_url = f"https://raw.githubusercontent.com/{repo_url}/master/.github/scripts/listings.json"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(raw_url) as resp:
+            if resp.status == 200:
+                text = await resp.text()
+                try:
+                    return json.loads(text)
+                except Exception as e:
+                    print(f"Failed to parse listings.json: {e}")
+    return None
 
 async def check_github_commits(client: discord.Client, channel_id: int, user_id: int, repo_url: str, interval: int = 300):
-    global last_commit_id
+    global last_seen_key
     await client.wait_until_ready()
     channel = client.get_channel(channel_id)
-    feed_url = f"https://github.com/{repo_url}/commits/master.atom"
-
     while not client.is_closed():
-        feed = feedparser.parse(feed_url)
-        if feed.entries:
-            if last_commit_id is None:
-                last_commit_id = feed.entries[0].id
-
-            commits_to_send = []
-            for entry in feed.entries:
-                if entry.id == last_commit_id:
+        listings = await fetch_listings_json(repo_url)
+        if listings and len(listings) > 0:
+            new_entries = []
+            for entry in listings:
+                key = f"{entry.get('company','').strip()}::{entry.get('title','').strip()}"
+                if last_seen_key is None:
+                    last_seen_key = key
                     break
-                commits_to_send.append(entry)
-
-            if commits_to_send:
-                for commit in reversed(commits_to_send):
-                    message = (
-                        f"🛠️ New commit in **{feed.feed.title}**:\n"
-                        f"**{commit.title}**\n"
-                        f"<{commit.link}>\n"
-                        f"<@{user_id}>"
-                    )
+                if key == last_seen_key:
+                    break
+                if(entry.get("season") == "Summer"):
+                    new_entries.append(entry)
+            if new_entries:
+                for entry in reversed(new_entries):
+                    company = entry.get('company_name', 'Unknown Company')
+                    title = entry.get('title', 'Unknown Title')
+                    message = f"<@{user_id}> New internship: **{company}** - **{title}**"
                     await channel.send(message)
-
-                last_commit_id = commits_to_send[0].id
-        
+                last_seen_key = f"{listings[0].get('company','').strip()}::{listings[0].get('title','').strip()}"
         await asyncio.sleep(interval)
