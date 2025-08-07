@@ -8,6 +8,8 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")
 
+INTERNSHIP_ROLE_NAME = "Internship Alerts"
+
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
@@ -16,9 +18,11 @@ tree = app_commands.CommandTree(client)
 def load_commands():
     from commands.general import setup_general_commands
     from commands.brawl import setup_brawl_commands
+    from commands.interntracking import setup_interntracking_commands
     
     setup_general_commands(tree, GUILD_ID)
     setup_brawl_commands(tree, GUILD_ID)
+    setup_interntracking_commands(tree, GUILD_ID, INTERNSHIP_ROLE_NAME)
 
 @client.event
 async def on_ready():
@@ -32,9 +36,9 @@ async def on_ready():
         check_github_commits(
             client=client,
             channel_id=1370506707494764671,
-            user_id=692912115823935570,
-            repo_url="vanshb03/Summer2026-Internships",  # e.g. 'vercel/next.js'
-            interval=120  # 5 minutes
+            role_name=INTERNSHIP_ROLE_NAME,
+            repo_url="vanshb03/Summer2026-Internships",
+            interval=120
         )
     )
 

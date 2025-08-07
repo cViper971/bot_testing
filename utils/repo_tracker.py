@@ -17,10 +17,17 @@ async def fetch_listings_json(repo_url: str):
                     print(f"Failed to parse listings.json: {e}")
     return None
 
-async def check_github_commits(client: discord.Client, channel_id: int, user_id: int, repo_url: str, interval: int = 300):
+async def check_github_commits(client: discord.Client, channel_id: int, role_name: str, repo_url: str, interval: int = 300):
     global last_seen_key
     await client.wait_until_ready()
     channel = client.get_channel(channel_id)
+    guild = channel.guild if channel else None
+    role_id = None
+    if guild:
+        role = discord.utils.get(guild.roles, name=role_name)
+        if role:
+            role_id = role.id
+
     while not client.is_closed():
         listings = await fetch_listings_json(repo_url)
         if listings and len(listings) > 0:
@@ -38,7 +45,8 @@ async def check_github_commits(client: discord.Client, channel_id: int, user_id:
                 for entry in reversed(new_entries):
                     company = entry.get('company_name', 'Unknown Company')
                     title = entry.get('title', 'Unknown Title')
-                    message = f"<@{user_id}> New internship: **{company}** - **{title}**"
+                    mention = f"<@&{role_id}>" if role_id else "@everyone"
+                    message = f"{mention} New internship: **{company}** - **{title}**"
                     await channel.send(message)
                 last_seen_key = f"{listings[0].get('company','').strip()}::{listings[0].get('title','').strip()}"
         await asyncio.sleep(interval)
