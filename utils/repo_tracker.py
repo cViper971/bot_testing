@@ -32,8 +32,8 @@ async def check_github_commits(client: discord.Client, channel_id: int, role_nam
         listings = await fetch_listings_json(repo_url)
         if listings and len(listings) > 0:
             new_entries = []
-            for entry in listings:
-                key = f"{entry.get('company','').strip()}::{entry.get('title','').strip()}"
+            for entry in reversed(listings):
+                key = f"{entry.get('company_name','').strip()}::{entry.get('title','').strip()}"
                 if last_seen_key is None:
                     last_seen_key = key
                     break
@@ -48,5 +48,5 @@ async def check_github_commits(client: discord.Client, channel_id: int, role_nam
                     mention = f"<@&{role_id}>" if role_id else "@everyone"
                     message = f"{mention} New internship: **{company}** - **{title}**"
                     await channel.send(message)
-                last_seen_key = f"{listings[0].get('company','').strip()}::{listings[0].get('title','').strip()}"
+                last_seen_key = f"{listings[-1].get('company_name','').strip()}::{listings[-1].get('title','').strip()}"
         await asyncio.sleep(interval)
