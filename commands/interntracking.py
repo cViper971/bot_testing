@@ -5,10 +5,12 @@ import PyPDF2
 import io
 import aiohttp
 from dotenv import load_dotenv
+from huggingface_hub import InferenceClient
 
 load_dotenv()
 HF_API_KEY = os.getenv("HF_API_KEY")
-HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
+HF_MODEL = "deepseek-ai/DeepSeek-V3-0324"
+client = InferenceClient(api_key=HF_API_KEY)
 
 
 def setup_interntracking_commands(tree, guild_id, role_name):
@@ -54,25 +56,26 @@ def setup_interntracking_commands(tree, guild_id, role_name):
         if not text.strip():
             await interaction.followup.send("Could not extract any text from the PDF.", ephemeral=True)
             return
-        # Send to GPT
+        # Send to HF
         prompt = f"You are a professional resume reviewer. Give concise, actionable feedback for this resume:\n\n{text[:3500]}"
-        url = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
-        headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 500}}
-
-        print(HF_API_KEY)
         
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as resp:
-                if resp.status != 200:
-                    err = await resp.text()
-                    await interaction.followup.send(f"Hugging Face API error: {err}", ephemeral=True)
-                    return
-                result = await resp.json()
-        # Hugging Face sometimes returns a list
-        if isinstance(result, list) and len(result) > 0 and "generated_text" in result[0]:
-            review = result[0]["generated_text"].strip()
-        else:
-            review = str(result)
+        try:
+            completion = client.chat.completions.create(
+                model=HF_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a professional resume reviewer. Give concise, actionable feedback."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Review this resume:\n\n{text[:3500]}"
+                    }
+                ],
+            )
+            review = completion.choices[0].message.content.strip()
+        except Exception as e:
+            await interaction.followup.send(f"Hugging Face API error: {e}", ephemeral=True)
+            return
 
         await interaction.followup.send(f"**Resume Review:**\n{review}")
